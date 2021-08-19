@@ -1,4 +1,6 @@
 #+STARTUP: showall
+#+STARTUP: latexpreview
+#+STARTUP: imagepreview
 
 * Link to the course (youtube) - Computer Fluid Dynamics (CFD)
 Openware Boston University:
@@ -7,18 +9,113 @@ https://www.youtube.com/watch?v=cDy5XGOokBY&list=PL30F4C5ABCE62CB61&ab_channel=B
 * Class 1
 ** Navier-Stokes Equations
 - General Equation:
-    \begin{equation}
-            \begin{aligned}
-            \dfrac{\partial{\vec{V}}}{\partial{t}} + \vec{V}.\nabla{\vec{V}} = - \dfrac{\nabla{p}}{\rho} + \nu{}\nabla^2{\vec{V}}
-            \end{aligned}
-    \end{equation}
+  \begin{equation}
+          \begin{aligned}
+          \dfrac{\partial{\vec{V}}}{\partial{t}} + \vec{V}.\nabla{\vec{V}} = - \dfrac{\nabla{p}}{\rho} + \nu{}\nabla^2{\vec{V}}
+          \end{aligned}
+  \end{equation}
 - Left-hand side represents acceleration terms.
   1) $\dfrac{\partial{\vec{V}}}{\partial{t}}$ represents unstady acceleration.
-  2) $\vec{V}.\nabla{\vec{V}}$represents convective acceleration.
+  2) $\vec{V}.\nabla{\vec{V}}$ represents convective acceleration.
 - Right-hand size represents action upon fluid
   1. $- \dfrac{\nabla{p}}{\rho}$ represents the pressure relevance on motion (Termodynamical pressure).
   2. $\nu{}\nabla^2{\vec{V}}$ Conservation of momentum - regarding a Newtonian Fluid.
  
+* Class 2
+\begin{equation}
+\begin{aligned}
+\dfrac{\partial{u}}{\partial{t}} + c \dfrac{\partial{u}}{\partial{x}}=0
+\end{aligned}
+\end{equation}
+
+Simulate the equation with,
+- Foward Difference (FD) in time
+- Backward Difference (BD) in space
+** Constants
+#+begin_src julia :session main :result output
+  nx= 50;
+  nt= 200;
+  delta_t = 0.01;
+  c=5;
+  delta_x = 15/(nx - 1)
+  x = range(0, stop=delta_x*(nx-1), length=nx) # Full range of spatial steps for wich a solution is desired
+#+end_src
+
+#+RESULTS:
+: 0.0:0.30612244897959184:15.0
+** Initial space
+#+begin_src julia :session main :results silent
+  # Init array of ones at initial timestep
+  u_zero = ones(nx) 
+  
+  # Set u₀ = 2 in the interval 0.5 ≤ x ≤ 1 as per our I.C.s
+  u_zero[0.5 .<= x .<= 3] .= 2  # Note use of . (dot) broadcasting syntax
+  
+  u_zero
+#+end_src
+
+** Now, for time
+#+begin_src julia :session main :result output
+  endTime = 2   # simulation end time
+  nt = 1000          # nt is the number of timesteps we want to calculate
+  delta_t = endTime/nt  # Δt is the amount of time each timestep covers
+  t = range(0, stop=endTime, length=nt) # Full range of time steps for which a solution is desired
+#+end_src
+
+#+RESULTS:
+: 0.0:0.002002002002002002:2.0
+
+** Simulate
+#+begin_src julia :session main :result output
+  # u[:,] = copy(u_zero) # Initialise arbitrary future timestep with inital condition, u_zero
+  u=zeros((nx,nt+1))
+  u[:,1]=copy(u_zero)
+  
+  for n in 1:nt       # loop over timesteps, n: nt times
+      u[:,n+1] = copy(u[:,n]) # copy the existing values of u^n into u^(n+1)
+      for i in 2:nx   # you can try commenting this line and...
+          #for i in 1:nx    # ... uncommenting this line and see what happens!
+          u[i,n+1] = u[i,n] - c * delta_t/delta_x * (u[i,n] - u[i-1,n])
+      end
+  end
+#+end_src
+
+#+RESULTS:
+: nothing
+
+#+begin_src julia :session main :result output
+  using Plots
+  using GR
+#+end_src
+
+#+RESULTS:
+
+
+#+BEGIN_SRC julia :results file graphics :file curve2.png :output-dir figs :session main
+  GR.plot(x,u_zero)
+#+end_src
+
+#+RESULTS:
+[[file:figs/curve2.png]]
+
+#+begin_src julia :session main :result output
+  plot(x,u_zero)
+#+end_src
+
+#+begin_src julia :session main :result output
+  anim = @animate for n in 1:10:nt
+      Plots.plot(x, u[:,n])
+  end
+#+end_src
+
+#+RESULTS:
+
+#+begin_src julia :session main :result output
+  gif(anim, "gif_ploting.gif", fps=60)
+#+end_src
+
+#+RESULTS:
+: Plots.AnimatedGif("/home/buddhilw/PP/Julia/CompFluidDynamics/gif_ploting.gif")
 
 * 12 Steps (program)
 ** Intro
@@ -71,8 +168,8 @@ We'll start by importing a few libraries to help us out.
 
 #+NAME: 1e870f15-0800-4fe5-9a4c-a6dbb818cdc6
 #+begin_src julia-vterm :session localhost :result output
-# Remember: comments in Julia are denoted by the pound sign
-using GR
+  # Remember: comments in Julia are denoted by the pound sign
+  using GR
 #+end_src
 
 #+RESULTS: 1e870f15-0800-4fe5-9a4c-a6dbb818cdc6
@@ -82,18 +179,18 @@ Now let's define a few variables; we want to define an evenly spaced grid of poi
 
 #+NAME: 49df800d-6fb9-4642-b3e6-37efcd1675c3
 #+begin_src julia-vterm :session localhost :result output
-nx = 1000          # try changing this number from 40 to 80 and Run All ... what happens?
-delta_x = 2 / (nx-1)  # Δx is the amount of space between each spatial point
-x = range(0, stop=delta_x*(nx-1), length=nx) # Full range of spatial steps for wich a solution is desired
-
-endTime = .625   # simulation end time
-nt = 25          # nt is the number of timesteps we want to calculate
-delta_t = endTime/nt  # Δt is the amount of time each timestep covers
-t = range(0, stop=endTime, length=nt) # Full range of time steps for which a solution is desired
-
-c = 1            # assume wavespeed of c = 1
-
-delta_t
+  nx = 1000          # try changing this number from 40 to 80 and Run All ... what happens?
+  delta_x = 2 / (nx-1)  # Δx is the amount of space between each spatial point
+  x = range(0, stop=delta_x*(nx-1), length=nx) # Full range of spatial steps for wich a solution is desired
+  
+  endTime = .625   # simulation end time
+  nt = 25          # nt is the number of timesteps we want to calculate
+  delta_t = endTime/nt  # Δt is the amount of time each timestep covers
+  t = range(0, stop=endTime, length=nt) # Full range of time steps for which a solution is desired
+  
+  c = 1            # assume wavespeed of c = 1
+  
+  delta_t
 #+end_src
 
 #+RESULTS: 49df800d-6fb9-4642-b3e6-37efcd1675c3
@@ -114,13 +211,13 @@ u(x) = 1,  \, D_2: \, \left(0 < x < 0.5 \right) \, \cup \, \left( 1 < x < 2 \rig
 Here, we use the function `ones()` defining a array which is `nx` elements long with every value equal to 1.
 #+NAME: d681b770-b2c8-417b-81ee-8f3f4ed8e376
 #+begin_src julia-vterm :session localhost :results silent
-# Init array of ones at initial timestep
-u_zero = ones(nx) 
-
-# Set u₀ = 2 in the interval 0.5 ≤ x ≤ 1 as per our I.C.s
-u_zero[0.5 .<= x .<= 1] .= 2  # Note use of . (dot) broadcasting syntax
-
-u_zero
+  # Init array of ones at initial timestep
+  u_zero = ones(nx) 
+  
+  # Set u₀ = 2 in the interval 0.5 ≤ x ≤ 1 as per our I.C.s
+  u_zero[0.5 .<= x .<= 1] .= 2  # Note use of . (dot) broadcasting syntax
+  
+  u_zero
 #+end_src
 
 Now let's take a look at those initial conditions using a plot.  We're
@@ -134,7 +231,7 @@ Here, we use the syntax for a simple 2D plot: `plot(x,y)`, where the
 
 #+NAME: f350edd9-3439-4c19-93d5-ddd29ec8b3b0
 #+begin_src julia-vterm :session localhost :result output
-GR.plot(range(0, stop=2, length=nx), u_zero)
+  GR.plot(range(0, stop=2, length=nx), u_zero)
 #+end_src
 
 #+RESULTS: f350edd9-3439-4c19-93d5-ddd29ec8b3b0
@@ -158,17 +255,17 @@ Then, we may think we have two iterative operations: one in space and one in tim
 Note, Like MATLAB Julia array indexing starts at 1.
 
 #+begin_src julia-vterm :session main :result output
-u = copy(u_zero)^(-(n+1)) # Initialise arbitrary future timestep with inital condition, u_zero
-
-for n in 1:nt       # loop over timesteps, n, from timestep 1 to nt, so it will run nt times
-    u^n = copy(u^(n+1)) # copy the existing values of u^n into u^(n+1)
-    for i in 2:nx   # you can try commenting this line and...
-    #for i in 1:nx    # ... uncommenting this line and see what happens!
-        u[i]^(n+1) = u[i]^(n) - c * delta_t/delta_x * (u[i]^n - u[i-1]^n)
-    end
-end
-
-u = u^(n+1); # Assign u^(n+1) to u as no further timesteps will be computed. Semi-colon suppresses output.
+  u = copy(u_zero)^(-(n+1)) # Initialise arbitrary future timestep with inital condition, u_zero
+  
+  for n in 1:nt       # loop over timesteps, n, from timestep 1 to nt, so it will run nt times
+      u^n = copy(u^(n+1)) # copy the existing values of u^n into u^(n+1)
+      for i in 2:nx   # you can try commenting this line and...
+          #for i in 1:nx    # ... uncommenting this line and see what happens!
+          u[i]^(n+1) = u[i]^(n) - c * delta_t/delta_x * (u[i]^n - u[i-1]^n)
+      end
+  end
+  
+  u = u^(n+1); # Assign u^(n+1) to u as no further timesteps will be computed. Semi-colon suppresses output.
 #+end_src
 
 #+RESULTS:
@@ -214,7 +311,7 @@ As before, the Julia code starts by loading the necessary libraries. Then, we de
   U_zero = ones(nx)          # Initalise u with ones
   U_zero[0.5 .<= x .<= 1] .= 2 # Set u₀ = 2 in the interval 0.5 ≤ x ≤ 1 as per our I.C.s
   
-   u = copy(u_zero)^(t+1); # Initialise arbitrary future timestep with inital condition, u₀
+  u = copy(u_zero)^(t+1); # Initialise arbitrary future timestep with inital condition, u₀
 #+end_src
 
 #+RESULTS:
@@ -224,7 +321,7 @@ markdown:
 The code snippet below is *unfinished*. We have copied over the line from [Step 1](./01_Step_1.ipynb) that executes the time-stepping update. Can you edit this code to execute the nonlinear convection instead?
 
 #+begin_src julia-vterm :session main :result output
-2^(3+1)
+  2^(3+1)
 #+end_src
 
 #+RESULTS:
@@ -235,8 +332,8 @@ The code snippet below is *unfinished*. We have copied over the line from [Step 
   for n in 1:nt  #iterate through time
       u^n = copy(u^(n+1)) ##copy the existing values of u into un
       for i in 2:nx  ##now we'll iterate through the u array
-       ###This is the line from Step 1, copied exactly.  Edit it for our new equation.
-       ###then uncomment it and run the cell to evaluate Step 2       
+          ###This is the line from Step 1, copied exactly.  Edit it for our new equation.
+          ###then uncomment it and run the cell to evaluate Step 2       
           u[i] = (u^n[i] - u^n[i] * delta_t/delta_x * (u^n[i] - u^n[i-1]))^(-n-1)
       end
   end
